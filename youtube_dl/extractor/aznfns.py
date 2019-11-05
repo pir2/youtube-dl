@@ -16,11 +16,21 @@ class BusinessInsiderIE(InfoExtractor):
     }]
 
     def _real_extract(self, url):
-        mobj = re.match(self._VALID_URL, url)
-        video_id, display_id = mobj.groups()
-
+        video_id = self._match_id(url)
         webpage = self._download_webpage(url, video_id)
-        video_data = self._extract_jwplayer_data(webpage, video_id, require_title=False)
-        return self.url_result(
-            'jwplatform:%s' % jwplatform_id, ie=JWPlatformIE.ie_key(),
-            video_id=video_id)
+
+        iframe_url = self._search_regex(
+            r'<iframe[^>]+src="([^"]+)"', webpage, 'iframe URL')
+
+        ifs_page = self._download_webpage(iframe_url, video_id)
+        jwplayer_data = self._find_jwplayer_data(
+            ifs_page, video_id, transform_source=js_to_json)
+        info_dict = self._parse_jwplayer_data(
+            jwplayer_data, video_id, require_title=False, base_url=iframe_url)
+
+        info_dict.update({
+            'id': video_id,
+            'title': 'default',
+            'description': 'default',
+            'series': 'default'
+        })
